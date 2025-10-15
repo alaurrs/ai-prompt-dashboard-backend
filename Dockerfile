@@ -1,16 +1,15 @@
-FROM eclipse-temurin:21-jdk AS build
+# ===== build =====
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY mvnw pom.xml ./
-COPY .mvn .mvn
-RUN ./mvnw -q -DskipTests dependency:go-offline
+COPY pom.xml ./
 COPY src src
-RUN ./mvnw -q -DskipTests package
+RUN mvn -q -DskipTests package
 
+# ===== run =====
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN useradd -ms /bin/bash spring
 USER spring
-COPY --from=build /app/target/*-SNAPSHOT.jar app.jar
-
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=75","-jar","/app/app.jar"]
