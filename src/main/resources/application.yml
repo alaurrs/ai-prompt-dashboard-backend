@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: ai-prompt-backend
+  jackson:
+    serialization.WRITE_DATES_AS_TIMESTAMPS: false
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  flyway:
+    enabled: true
+  datasource.hikari:
+    maximum-pool-size: 5
+    minimum-idle: 0
+    idle-timeout: 30000
+security:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS}
+
+server:
+  servlet:
+    context-path: /api
+openai:
+  api-key: ${OPENAI_API_KEY}
+
+  org-id: ${OPENAI_ORG_ID}
+  project-id: ${OPENAI_PROJECT_ID}
+  base-url: ${OPENAI_BASE_URL}
+  model: ${OPENAI_MODEL}
+
+  connect-timeout-ms: 10_000
+  read-timeout-ms: 0
+  max-retries: 2
+
+jwt:
+  secret: "${JWT_SECRET}"
+  expiration-minutes: 15
+management.endpoints.web.exposure.include: "health,info,metrics,prometheus"
