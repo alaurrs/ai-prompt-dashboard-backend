@@ -30,7 +30,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final AppUserDetailsService userDetailsService;
-    @Value("${security.cors.allowed-origins:http://localhost:4200}")
+    @Value("${security.cors.allowed-origins}")
     private String allowedOriginsProp;
 
     @Bean
