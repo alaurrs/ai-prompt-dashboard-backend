@@ -36,11 +36,12 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public String issue(UUID userId, String email, List<String> roles) {
+    public String issue(UUID userId, String email, String displayName, List<String> roles) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
+                .claim("displayName", displayName)
                 .claim("roles", roles == null ? List.of("ROLE_USER") : roles)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expMinutes, ChronoUnit.MINUTES)))
@@ -73,6 +74,7 @@ public class JwtServiceImpl implements JwtService {
 
             String sub = claims.getSubject();
             String email = claims.get("email", String.class);
+            String displayName = claims.get("displayName", String.class);
             if (sub == null || sub.isBlank()) {
                 throw new JwtException("Missing subject");
             }
@@ -82,7 +84,7 @@ public class JwtServiceImpl implements JwtService {
 
             String tokenType = Objects.toString(claims.get("typ"), "access");
 
-            return new JwtPrincipal(userId, email, roles, tokenType);
+            return new JwtPrincipal(userId, email, displayName, roles, tokenType);
         } catch (JwtException | IllegalArgumentException e) {
             throw new JwtException("Invalid or expired JWT: " + e.getMessage(), e);
         }

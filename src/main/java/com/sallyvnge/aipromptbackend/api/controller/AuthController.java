@@ -47,12 +47,13 @@ public class AuthController {
 
             UUID userId = userEntity.getId();
             String email = user.getUsername();
+            String displayName = userEntity.getDisplayName();
 
             List<String> roles = user.getAuthorities()
                     .stream()
                     .map(GrantedAuthority::getAuthority).toList();
 
-            String access = jwtService.issue(userId, email, roles);
+            String access = jwtService.issue(userId, email, displayName, roles);
             String refresh = jwtService.issueRefresh(userId);
             return ResponseEntity.ok(Map.of(
                     "accessToken", access,
@@ -87,7 +88,7 @@ public class AuthController {
                     .map(GrantedAuthority::getAuthority).toList();
 
             UUID userId = principal.userId();
-            String newAccess = jwtService.issue(userId, principal.email(), roles);
+            String newAccess = jwtService.issue(userId, principal.email(), principal.displayName(), roles);
             String newRefresh = jwtService.issueRefresh(userId);
 
             return ResponseEntity.ok(Map.of(
