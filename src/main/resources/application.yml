@@ -39,8 +39,30 @@ openai:
   connect-timeout-ms: 10_000
   read-timeout-ms: 0
   max-retries: 2
+app:
+  ai:
+    model:
+      summary: gpt-5-nano
+      embedding: text-embedding-3-small
+  memory:
+    enabled: true
+    semantic:
+      enabled: true
+      topK: 5
+    summary:
+      maxTokens: 800
+      compress-above-tokens: 1200
+      tail-messages: 6
+    purge:
+      enabled: true
+      ttlDays: 180
 
 jwt:
   secret: "${JWT_SECRET}"
   expiration-minutes: 15
 management.endpoints.web.exposure.include: "health,info,metrics,prometheus"
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.sallyvnge: DEBUG
+

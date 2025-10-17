@@ -6,7 +6,15 @@ import com.sallyvnge.aipromptbackend.domain.MessageEntity;
 import com.sallyvnge.aipromptbackend.domain.ThreadEntity;
 import com.sallyvnge.aipromptbackend.repository.MessageRepository;
 import com.sallyvnge.aipromptbackend.repository.ThreadRepository;
+import com.sallyvnge.aipromptbackend.service.memory.EpisodeExtractor;
+import com.sallyvnge.aipromptbackend.service.memory.SemanticMemoryService;
+import com.sallyvnge.aipromptbackend.service.memory.ThreadSummaryService;
+import com.sallyvnge.aipromptbackend.service.prompt.PromptAssembler;
+import com.sallyvnge.aipromptbackend.service.prompt.PromptContext;
+import com.sallyvnge.aipromptbackend.service.prompt.PromptFormatter;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +26,15 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageService {
     private final ThreadRepository threadRepository;
+    private final ThreadSummaryService threadSummaryService;
+    private final SemanticMemoryService semanticMemoryService;
     private final MessageRepository messageRepository;
+    private final EpisodeExtractor episodeExtractor;
+    private final PromptAssembler promptAssembler;
+    private final PromptFormatter promptFormatter;
 
     @Transactional(readOnly = true)
     public List<MessageDto> list(UUID threadId, int afterPosition, int limit) {
@@ -76,10 +90,49 @@ public class MessageService {
     }
 
     @Transactional
-    public MessageDto finalizeAssistantMessage(UUID messageId) {
-        MessageEntity message = messageRepository.findById(messageId)
+    public MessageDto finalizeAssistantMessage(UUID messageId, UUID threadId, @Nullable String latestUserMsg) {
+        var message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new IllegalArgumentException("Message not found"));
-        if (!"streaming".equals(message.getStatus())) return toDto(message);
+
+        if (!"streaming".equals(message.getStatus())) {
+            return toDto(message);
+        }
+
+        String finalContent = Optional.ofNullable(message.getContentDelta()).orElse("");
+        message.setContent(finalContent);
+        message.setContentDelta(null);
+        message.setStatus("complete");
+        message.setUpdatedAt(Instant.now());
+        messageRepository.save(message);
+
+        UUID userId = threadRepository.findOwnerIdByThreadId(threadId).orElseThrow(
+                () -> new IllegalArgumentException("Owner not found")
+        );
+
+        String u = Optional.ofNullable(latestUserMsg).orElse("");
+        String a = finalContent;
+
+        try { threadSummaryService.updateSummary(threadId, u, a); } catch (Exception ignored) {}
+        try { semanticMemoryService.indexChunk(userId, threadId, "assistant", a); } catch (Exception ignored) {}
+        try { episodeExtractor.maybeCreateEpisodes(userId, threadId, (u + " " + a).trim()); } catch (Exception ignored) {}
+
+        return toDto(message);
+    }
+
+    @Transactional
+    public MessageDto finalizeAssistantMessage(
+            UUID messageId,
+            UUID userId,
+            UUID threadId,
+            @Nullable String latestUserMsg,
+            @Nullable String assistantMsgComplete
+    ) {
+        var message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
+
+        if (!"streaming".equals(message.getStatus())) {
+            return toDto(message);
+        }
 
         String finalContent = Optional.ofNullable(message.getContentDelta()).orElse("");
         message.setContent(finalContent);
@@ -87,12 +140,44 @@ public class MessageService {
         message.setStatus("complete");
         message.setUpdatedAt(Instant.now());
 
+        messageRepository.save(message);
+
+        String u = Optional.ofNullable(latestUserMsg).orElse("");
+        String a = Optional.ofNullable(assistantMsgComplete).orElse(finalContent);
+
+        try {
+
+            threadSummaryService.updateSummary(threadId, u, a);
+        } catch (Exception e) {
+            log.warn("Summary update failed for thread {}: {}", threadId, e.getMessage(), e);
+        }
+
+        try {
+            semanticMemoryService.indexChunk(userId, threadId, "assistant", a);
+        } catch (Exception e) {
+            log.warn("Semantic index failed for thread {}: {}", threadId, e.getMessage(), e);
+        }
+
+        try {
+            episodeExtractor.maybeCreateEpisodes(userId, threadId, (u + " " + a).trim());
+        } catch (Exception e) {
+            log.warn("Episode extraction failed for thread {}: {}", threadId, e.getMessage(), e);
+        }
+
         return toDto(message);
     }
+
 
     @Transactional
     public void failAssistantMessage(UUID messageId, String errorMessage, String errorCode) {
         messageRepository.markError(messageId, errorCode, errorMessage);
+    }
+
+    public PreparedCall prepareProviderInputs(UUID userId, UUID threadId, String userPrompt, String systemPromptBase) {
+        PromptContext context = promptAssembler.assemble(userId, threadId, userPrompt, systemPromptBase);
+        String system = promptFormatter.buildSystem(context);
+        String user = promptFormatter.buildUser(userPrompt);
+        return new PreparedCall(system, user);
     }
 
     private MessageDto toDto(MessageEntity message) {
@@ -112,4 +197,5 @@ public class MessageService {
                 .createdAt(message.getCreatedAt())
                 .build();
     }
+    public record PreparedCall(String system, String user) {}
 }

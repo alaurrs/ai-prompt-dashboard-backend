@@ -4,16 +4,17 @@ This document describes how the backend is structured today, what it does, and h
 
 ## Overview
 
-- Spring Boot 3.5.6 (Java 21), Maven build
+- Spring Boot 3.5 (Java 21), Maven build
 - PostgreSQL with Flyway migrations
-- REST API served under the base path `/api`
-- Server-Sent Events (SSE) for streaming assistant responses
+- REST API served under base path `/api`
+- Server‑Sent Events (SSE) for streaming assistant responses
 - Layered design: API → Service → Domain/Ports → Repository → Infrastructure
 
 ## Tech Stack
 
 - Spring Boot Web, Validation, Data JPA, Actuator
-- Spring Security (foundation in place; permissive by default)
+- Spring Security (JWT, stateless sessions)
+- JJWT (HS256) for issuing and validating tokens
 - Lombok for boilerplate reduction
 - PostgreSQL driver + Flyway
 - OpenAI Java SDK for streaming completions
@@ -22,13 +23,12 @@ This document describes how the backend is structured today, what it does, and h
 
 ```
 API (Controllers & DTOs)
-  - ThreadController
-  - MessageController
+  - AuthController, UserController
+  - ThreadController, MessageController
   - AiSseController (SSE endpoint)
 
 Service (Business logic)
-  - ThreadService
-  - MessageService
+  - ThreadService, MessageService
 
 Domain (Entities & Ports)
   - UserEntity, ThreadEntity, MessageEntity
@@ -36,6 +36,9 @@ Domain (Entities & Ports)
 
 Repository (Persistence)
   - UserRepository, ThreadRepository, MessageRepository
+
+Security
+  - SecurityConfig, JwtAuthFilter, JwtService/Impl, AppUserDetailsService
 
 Infrastructure (Adapters)
   - OpenAiProvider (@Primary)
@@ -48,10 +51,10 @@ Infrastructure (Adapters)
 2) `MessageService.createAssistantDraft` creates a streaming assistant message (status `streaming`) and bumps the thread `updatedAt`.
 3) A background thread calls `AiProvider.respondStream(...)`:
    - On delta: `MessageRepository.appendDelta` appends to `content_delta` and an SSE `token` event is emitted.
-   - On done: `MessageService.finalizeAssistantMessage` moves `content_delta` → `content`, sets status to `complete`, and emits SSE `done` (`[DONE]`).
+   - On done: `MessageService.finalizeAssistantMessage` moves `content_delta` -> `content`, sets status to `complete`, and emits SSE `done` (`[DONE]`).
    - On error: `MessageRepository.markError` stores error details and an SSE `error` event is emitted.
 
-Default model behavior today:
+Default model behavior:
 - New threads: `ThreadService.create` defaults to `o4-mini` if no model is supplied.
 - SSE provider fallback: `OpenAiProvider` falls back to `gpt-4o-mini` if model is blank.
 
@@ -80,16 +83,29 @@ Tables and constraints are defined under `src/main/resources/db/migration`:
   - created_at, updated_at
   - index: (thread_id, position)
 
+- Conversational memory (introduced in V4)
+  - user_memory(user_id pk, profile_json, updated_at)
+  - thread_summary(thread_id pk, summary_text, tokens_estimated, updated_at)
+  - memory_episode(id pk, user_id, thread_id?, occurred_at, title, detail, created_at)
+  - memory_chunk(id pk, user_id, thread_id?, source, content, embedding vector(1536), created_at)
+
 Note: not all columns are surfaced by the DTOs yet (e.g., `error_*`, `metadata`).
 
 ## API Surface
 
 Base path: `/api`
 
+Auth
+- POST `/auth/login` → returns `{ accessToken, refreshToken, tokenType, expiresIn }`
+- POST `/auth/refresh` → exchanges refresh token for new tokens
+
+Users
+- GET `/users/me` → returns `{ email, displayName, avatarUrl }`
+
 Threads
 - POST `/threads` → create a thread
-- GET `/threads?limit=&cursor=` → list threads for current user (cursor is `updatedAt` ISO-8601; max 50)
-- GET `/threads/{id}` → get a thread (owner-only)
+- GET `/threads?limit=&cursor=` → list threads for current user (cursor is `updatedAt` ISO‑8601; max 50)
+- GET `/threads/{id}` → get a thread (owner‑only)
 - PATCH `/threads/{id}` → patch title/status/model/systemPrompt with optimistic locking (`version`)
 
 Messages
@@ -99,7 +115,7 @@ Messages
 
 ### SSE Contract (respond)
 
-- Content-Type: `text/event-stream`
+- Content‑Type: `text/event-stream`
 - Events emitted:
   - `token`: incremental content delta
   - `done`: `[DONE]` when the provider completes
@@ -113,10 +129,10 @@ Messages
 
 ## Security and Current User
 
-- Requests are permitted by default (no enforced login yet).
-- `CurrentUserFilter` derives the current user from the `X-Demo-Email` header; if absent, falls back to `me@example.com`.
-- `ThreadService` ensures thread ownership per request (`GET`/`PATCH`).
-- JWT scaffolding exists but is not wired yet; production hardening will replace the dev header with authenticated principals.
+- Security: all routes require authentication except `/auth/**` and `/actuator/**`.
+- JwtAuthFilter: validates HS256 JWTs, rejects refresh tokens on protected routes, and sets `Authentication` principal to `JwtService.JwtPrincipal`.
+- AppUserDetailsService: loads users and roles from the database; bcrypt password encoder.
+- CurrentUser for domain services: during development, `CurrentUserFilter` populates a `CurrentUser` from the `X-Demo-Email` header to associate thread ownership. This can be swapped to derive from the authenticated principal for production.
 
 ## Configuration
 
@@ -124,20 +140,20 @@ Application configuration lives in `src/main/resources/application.yml` and envi
 
 - Database: `DB_URL`, `DB_USER`, `DB_PASSWORD`
 - HTTP: `server.servlet.context-path=/api`
-- CORS: `security.cors.allowed-origins` (comma-separated allowed origins)
-- OpenAI: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, optional model override `OPENAI_MODEL`
-- JWT (planned): `JWT_SECRET`, expiration minutes
+- CORS: `security.cors.allowed-origins` (comma‑separated allowed origins)
+- OpenAI: `openai.api-key`, `openai.base-url`, `openai.org-id`, `openai.project-id`, `openai.timeout-seconds`
+- JWT: `jwt.secret`, `jwt.exp-minutes`, `jwt.refresh-days`
 - Actuator: exposes `health,info,metrics,prometheus`
 
 ## OpenAI Integration
 
 - `OpenAiProvider` is the primary `AiProvider` implementation and streams chat completions using the OpenAI Java SDK.
 - Provider respects optional `systemPrompt` and user `prompt` and emits deltas as they arrive.
-- `MockAiProvider` offers a deterministic, no-network streaming experience for local testing.
+- `MockAiProvider` offers a deterministic, no‑network streaming experience for local testing.
 
 ## Notes & Future Work
 
 - Unify default model naming (`o4-mini` vs `gpt-4o-mini`) across thread creation and provider fallback.
 - Map additional fields to DTOs when needed (e.g., `error_code`, `error_message`, thread `metadata`).
-- Replace dev header user resolution with actual authentication (e.g., JWT) and wire SecurityFilterChain accordingly.
+- Replace dev header user resolution with principal‑derived `CurrentUser` in production.
 

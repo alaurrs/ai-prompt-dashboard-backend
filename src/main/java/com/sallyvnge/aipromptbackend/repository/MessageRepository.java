@@ -15,6 +15,10 @@ import java.util.UUID;
 public interface MessageRepository extends JpaRepository<MessageEntity, UUID> {
     List<MessageEntity> findByThreadAndPositionGreaterThanOrderByPositionAsc(ThreadEntity thread, int afterPosition, Pageable pageable);
     Optional<MessageEntity> findTopByThreadOrderByPositionDesc(ThreadEntity thread);
+    List<MessageEntity> findByThreadOrderByPositionDesc(ThreadEntity thread, Pageable pageable);
+
+    // Convenience by thread id for prompt assembly
+    List<MessageEntity> findByThread_IdOrderByPositionDesc(UUID threadId, Pageable pageable);
 
     @Modifying
     @Query(value = """

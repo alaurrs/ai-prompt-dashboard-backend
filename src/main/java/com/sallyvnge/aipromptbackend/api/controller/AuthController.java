@@ -81,14 +81,24 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid token type"));
             }
 
-            UserDetails userDetails = userDetailsService.loadUserByUsername(principal.email());
+            UUID userId = principal.userId();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid token payload"));
+            }
+
+            UserEntity user = userRepository.findById(userId)
+                    .orElse(null);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "User not found"));
+            }
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
 
             List<String> roles = userDetails.getAuthorities()
                     .stream()
                     .map(GrantedAuthority::getAuthority).toList();
 
-            UUID userId = principal.userId();
-            String newAccess = jwtService.issue(userId, principal.email(), principal.displayName(), roles);
+            String newAccess = jwtService.issue(userId, user.getEmail(), user.getDisplayName(), roles);
             String newRefresh = jwtService.issueRefresh(userId);
 
             return ResponseEntity.ok(Map.of(
@@ -97,7 +107,7 @@ public class AuthController {
                     "tokenType", "Bearer",
                     "expiresIn", Duration.ofMinutes(15).toSeconds()
             ));
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (JwtException | IllegalArgumentException | org.springframework.security.core.userdetails.UsernameNotFoundException | org.springframework.security.authentication.DisabledException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid or expired refresh token"));
         }
