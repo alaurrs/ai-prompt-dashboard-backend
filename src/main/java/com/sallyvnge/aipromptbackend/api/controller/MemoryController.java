@@ -21,7 +21,6 @@ import java.util.UUID;
 public class MemoryController {
 
     private final UserMemoryService userMemoryService;
-    private final ThreadSummaryRepository threadSummaryRepository;
     private final EpisodeService episodeService;
 
     @GetMapping("/profile")

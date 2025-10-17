@@ -48,7 +48,7 @@ public class PromptAssembler {
                     .append(truncate(m.getContent(), 1000)).append("\n");
             if (++count >= tail) break;
         }
-        return sb.length() == 0 ? "" : sb.toString();
+        return sb.isEmpty() ? "" : sb.toString();
     }
 
     private static String truncate(String s, int max) {

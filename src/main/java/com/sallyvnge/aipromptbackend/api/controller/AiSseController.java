@@ -71,7 +71,13 @@ public class AiSseController {
                             send(emitter, "token", delta);
                         },
                         () -> {
-                            messageService.finalizeAssistantMessage(draft.id(), threadId, user);
+                            messageService.finalizeAssistantMessage(
+                                    draft.id(),
+                                    principal.userId(),
+                                    threadId,
+                                    user,
+                                    null
+                            );
                             send(emitter, "done", "[DONE]");
                             emitter.complete();
                         },

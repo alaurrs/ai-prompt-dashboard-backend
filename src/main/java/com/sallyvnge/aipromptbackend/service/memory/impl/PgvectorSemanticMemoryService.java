@@ -68,7 +68,7 @@ public class PgvectorSemanticMemoryService implements SemanticMemoryService {
                 .input(text)
                 .build();
         var res = openAIClient.embeddings().create(params);
-        var vec = res.data().get(0).embedding();
+        var vec = res.data().getFirst().embedding();
         double[] out = new double[vec.size()];
         for (int i = 0; i < vec.size(); i++) out[i] = ((Number) vec.get(i)).doubleValue();
         return out;
