@@ -20,32 +20,20 @@ Ce document explique, pas à pas, comment la « mémoire conversationnelle » es
 
 ```mermaid
 flowchart LR
-    A[Client (UI)] --> B[AiSseController
- (endpoint /threads/{id}/respond)]
-    B --> C[MessageService
- - crée le brouillon de réponse
- - assemble le contexte]
-    C --> D[PromptAssembler
- - Profil
- - Résumé de thread
- - Récents messages
- - Notes sémantiques]
-    D --> E[PromptFormatter
- -> System + User prompts]
-    E --> F[AiProvider (OpenAI)
- - streaming des tokens]
-    F --> C
-    C -->|fin du stream| G[Finalisation]
-    G --> H[ThreadSummaryService
- (maj résumé)]
-    G --> I[SemanticMemoryService
- (index embedding)]
-    G --> J[EpisodeExtractor
- (détection d’épisodes)]
+  A["Client (UI)"] --> B["AiSseController<br/>(endpoint /threads/{id}/respond)"]
+  B --> C["MessageService<br/>crée le brouillon de réponse<br/>assemble le contexte"]
+  C --> D["PromptAssembler<br/>Profil<br/>Résumé de thread<br/>Récents messages<br/>Notes sémantiques"]
+  D --> E["PromptFormatter<br/>→ System + User prompts"]
+  E --> F["AiProvider (OpenAI)<br/>streaming des tokens"]
+  F --> C
+  C -- "fin du stream" --> G["Finalisation"]
+  G --> H["ThreadSummaryService<br/>(maj résumé)"]
+  G --> I["SemanticMemoryService<br/>(index embedding)"]
+  G --> J["EpisodeExtractor<br/>(détection d’épisodes)"]
+  H --> K[(DB)]
+  I --> K
+  J --> K
 
-    H --> K[(DB)]
-    I --> K
-    J --> K
 ```
 
 
