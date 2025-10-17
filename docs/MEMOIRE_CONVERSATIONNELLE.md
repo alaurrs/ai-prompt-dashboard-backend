@@ -71,44 +71,44 @@ erDiagram
     THREADS ||--o{ MEMORY_CHUNK : may_have
 
     USERS {
-        UUID id
-        ...
+        uuid id PK
+        text email
+        timestamptz created_at
     }
     THREADS {
-        UUID id
-        UUID user_id
-        ...
+        uuid id PK
+        uuid user_id FK
+        timestamptz created_at
     }
     USER_MEMORY {
-        UUID user_id PK
-        JSONB profile_json
-        TIMESTAMPTZ updated_at
+        uuid user_id PK
+        jsonb profile_json
+        timestamptz updated_at
     }
     THREAD_SUMMARY {
-        UUID thread_id PK
-        TEXT summary_text
-        INT tokens_estimated
-        TIMESTAMPTZ updated_at
+        uuid thread_id PK
+        text summary_text
+        int tokens_estimated
+        timestamptz updated_at
     }
     MEMORY_EPISODE {
-        UUID id PK
-        UUID user_id
-        UUID thread_id nullable
-        TIMESTAMPTZ occurred_at
-        TEXT title
-        TEXT detail
-        TIMESTAMPTZ created_at
+        uuid id PK
+        uuid user_id FK
+        uuid thread_id
+        timestamptz occurred_at
+        text title
+        text detail
+        timestamptz created_at
     }
     MEMORY_CHUNK {
-        UUID id PK
-        UUID user_id
-        UUID thread_id nullable
-        TEXT source
-        TEXT content
-        VECTOR_1536 embedding
-        TIMESTAMPTZ created_at
+        uuid id PK
+        uuid user_id FK
+        uuid thread_id
+        text source
+        text content
+        vector1536 embedding
+        timestamptz created_at
     }
-
 ```
 
 
