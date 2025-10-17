@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+    <!-- Include Spring Boot defaults and console appender -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- Application logger level (kept verbose) -->
+    <logger name="com.sallyvnge" level="DEBUG"/>
+
+    <!-- Observation wrapper around Security filter chain -->
+    <logger name="org.springframework.security.web.ObservationFilterChainDecorator" level="WARN"/>
+    <logger name="org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter" level="OFF"/>
+    <logger name="org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain" level="OFF"/>
+
+    <!-- Security filters prone to noisy stack traces on 401/403 -->
+    <logger name="org.springframework.security.web.access.ExceptionTranslationFilter" level="WARN"/>
+    <logger name="org.springframework.security.web.access.intercept.AuthorizationFilter" level="WARN"/>
+    <logger name="org.springframework.security.web.session.SessionManagementFilter" level="OFF"/>
+    <logger name="org.springframework.security.web.authentication.AnonymousAuthenticationFilter" level="OFF"/>
+    <logger name="org.springframework.security.web.FilterChainProxy" level="WARN"/>
+
+    <!-- Root logger with console appender to avoid 'No appenders present' warnings -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

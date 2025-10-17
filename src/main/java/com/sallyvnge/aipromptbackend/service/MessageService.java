@@ -167,6 +167,60 @@ public class MessageService {
         return toDto(message);
     }
 
+    /**
+     * Finalize the assistant message quickly (persist final content and mark complete),
+     * without running post-processing (summary, semantic index, episodes).
+     * Intended for low-latency SSE completion; post-processing can be run asynchronously.
+     */
+    @Transactional
+    public MessageDto finalizeAssistantMessageQuick(UUID messageId) {
+        var message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
+
+        if (!"streaming".equals(message.getStatus())) {
+            return toDto(message);
+        }
+
+        String finalContent = Optional.ofNullable(message.getContentDelta()).orElse("");
+        message.setContent(finalContent);
+        message.setContentDelta(null);
+        message.setStatus("complete");
+        message.setUpdatedAt(Instant.now());
+
+        messageRepository.save(message);
+
+        return toDto(message);
+    }
+
+    /**
+     * Run post-finalization tasks in background to avoid blocking SSE completion.
+     */
+    public void postFinalizeAssistantTasksAsync(UUID userId, UUID threadId, String latestUserMsg, String assistantMsgComplete) {
+        Runnable task = () -> {
+            try {
+                threadSummaryService.updateSummary(threadId, latestUserMsg, assistantMsgComplete);
+            } catch (Exception e) {
+                log.warn("Summary update failed for thread {}: {}", threadId, e.getMessage(), e);
+            }
+
+            try {
+                semanticMemoryService.indexChunk(userId, threadId, "assistant", assistantMsgComplete);
+            } catch (Exception e) {
+                log.warn("Semantic index failed for thread {}: {}", threadId, e.getMessage(), e);
+            }
+
+            try {
+                episodeExtractor.maybeCreateEpisodes(userId, threadId, (latestUserMsg + " " + assistantMsgComplete).trim());
+            } catch (Exception e) {
+                log.warn("Episode extraction failed for thread {}: {}", threadId, e.getMessage(), e);
+            }
+        };
+
+        Thread t = new Thread(task, "post-finalize-" + threadId);
+        t.setDaemon(true);
+        t.start();
+    }
+
 
     @Transactional
     public void failAssistantMessage(UUID messageId, String errorMessage, String errorCode) {

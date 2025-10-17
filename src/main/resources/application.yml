@@ -21,6 +21,19 @@ spring:
     maximum-pool-size: 5
     minimum-idle: 0
     idle-timeout: 30000
+  ai:
+    model:
+      chat: openai
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-5-nano
+          temperature: 1.0
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 1536
 security:
   cors:
     allowed-origins: ${ALLOWED_ORIGINS}
@@ -44,6 +57,7 @@ app:
     model:
       summary: gpt-5-nano
       embedding: text-embedding-3-small
+    provider: openai
   memory:
     enabled: true
     semantic:
@@ -60,9 +74,10 @@ app:
 jwt:
   secret: "${JWT_SECRET}"
   expiration-minutes: 15
-management.endpoints.web.exposure.include: "health,info,metrics,prometheus"
+management.endpoints.web.exposure.include: "health,info,metrics,prometheus,loggers"
+management.observations.enabled: false
+
 logging:
   level:
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
     com.sallyvnge: DEBUG
-

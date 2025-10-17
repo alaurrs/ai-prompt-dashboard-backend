@@ -8,6 +8,7 @@ import com.openai.models.chat.completions.*;
 import com.sallyvnge.aipromptbackend.domain.port.AiProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.function.Consumer;
 @Component
 @Primary
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.ai.provider", havingValue = "openai", matchIfMissing = false)
 public class OpenAiProvider implements AiProvider {
 
     private final OpenAIClient client;

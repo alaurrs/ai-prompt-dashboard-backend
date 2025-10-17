@@ -6,13 +6,16 @@ import com.sallyvnge.aipromptbackend.infrastructure.persistence.entity.UserMemor
 import com.sallyvnge.aipromptbackend.infrastructure.persistence.repository.UserMemoryRepository;
 import com.sallyvnge.aipromptbackend.service.memory.UserMemoryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserMemoryServiceImpl implements UserMemoryService {
@@ -41,6 +44,25 @@ public class UserMemoryServiceImpl implements UserMemoryService {
         userMemory.setProfileJson(safeJson);
         userMemory.setUpdatedAt(Instant.now());
         userMemoryRepository.save(userMemory);
+
+    }
+
+    @Transactional
+    public void mergeSimplePreference(UUID userId, String key, String value) {
+        UserMemoryEntity userMemory = userMemoryRepository.findById(userId).orElseGet(() -> {
+            UserMemoryEntity e = new UserMemoryEntity();
+            e.setUserId(userId);
+            e.setProfileJson("{}");
+            return e;
+        });
+        try {
+            JsonNode node = new ObjectMapper().readTree(userMemory.getProfileJson());
+            userMemory.setProfileJson(node.toString());
+            userMemory.setUpdatedAt(Instant.now());
+            userMemoryRepository.save(userMemory);
+        } catch (Exception e) {
+            log.error("Failed to parse user memory json", e);
+        }
 
     }
 
