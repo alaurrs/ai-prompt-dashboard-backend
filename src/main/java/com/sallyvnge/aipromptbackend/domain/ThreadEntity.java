@@ -22,6 +22,11 @@ public class ThreadEntity {
     private UserEntity user;
 
     private String title;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="title_source", nullable=false, length=10)
+    @Builder.Default
+    private TitleSource titleSource = TitleSource.AUTO;
     private String model;
 
     @Column(nullable = false)
@@ -30,6 +35,10 @@ public class ThreadEntity {
     private String systemPrompt;
     @Column(columnDefinition = "text")
     private String summary;
+
+    @OneToOne(fetch=FetchType.LAZY)
+    @JoinColumn(name="first_message_id")
+    private MessageEntity firstMessage;
 
     @Version
     private long version;

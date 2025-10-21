@@ -1,9 +1,7 @@
 package com.sallyvnge.aipromptbackend.api.controller;
 
-import com.sallyvnge.aipromptbackend.api.dto.thread.CreateThreadDto;
-import com.sallyvnge.aipromptbackend.api.dto.thread.PageDto;
-import com.sallyvnge.aipromptbackend.api.dto.thread.PatchThreadDto;
-import com.sallyvnge.aipromptbackend.api.dto.thread.ThreadDto;
+import com.sallyvnge.aipromptbackend.api.dto.thread.*;
+import com.sallyvnge.aipromptbackend.service.MessageService;
 import com.sallyvnge.aipromptbackend.service.ThreadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +23,14 @@ public class ThreadController {
             @RequestBody @Valid CreateThreadDto createThreadDto
             ) {
         return threadService.create(createThreadDto);
+    }
+
+    @PostMapping("/with-message")
+    @PreAuthorize("isAuthenticated()")
+    public ThreadDto createWithMessage(
+            @RequestBody @Valid CreateThreadWithMessageDto createThreadWithMessageDto
+    ) {
+        return threadService.createWithFirstMessage(createThreadWithMessageDto);
     }
 
     @GetMapping
