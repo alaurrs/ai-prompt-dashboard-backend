@@ -1,12 +1,12 @@
 -- 1) Mémoire de profil (1:1 avec user)
-CREATE TABLE user_memory (
+CREATE TABLE IF NOT EXISTS user_memory (
                              user_id UUID PRIMARY KEY REFERENCES users(id),
                              profile_json JSONB NOT NULL DEFAULT '{}'::jsonb,
                              updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- 2) Résumé par thread (1:1 avec thread)
-CREATE TABLE thread_summary (
+CREATE TABLE IF NOT EXISTS thread_summary (
                                 thread_id UUID PRIMARY KEY REFERENCES threads(id),
                                 summary_text TEXT NOT NULL DEFAULT '',
                                 tokens_estimated INT NOT NULL DEFAULT 0,
@@ -14,7 +14,7 @@ CREATE TABLE thread_summary (
 );
 
 -- 3) Épisodes (N par user)
-CREATE TABLE memory_episode (
+CREATE TABLE IF NOT EXISTS memory_episode (
                                 id UUID PRIMARY KEY,
                                 user_id UUID NOT NULL REFERENCES users(id),
                                 thread_id UUID NULL REFERENCES threads(id),
