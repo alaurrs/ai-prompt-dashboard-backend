@@ -269,7 +269,7 @@ public class ThreadService {
 
         String model = (threadModel != null && !threadModel.isBlank()) ? threadModel : summaryModel;
         String system = "You are an assistant that writes a concise, clear chat title in the user's language."
-                + " Rules: <= 80 characters, no quotes, no markdown, no code fences, no trailing punctuation,"
+                + " Rules: <= 40 characters, no quotes, no markdown, no code fences, no trailing punctuation,"
                 + " no surrounding punctuation, no emojis. Output ONLY the title text.";
         if (threadSystemPrompt != null && !threadSystemPrompt.isBlank()) {
             system = threadSystemPrompt + "\n\n" + system;
