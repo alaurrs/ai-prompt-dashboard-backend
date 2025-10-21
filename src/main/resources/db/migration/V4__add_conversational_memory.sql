@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS memory_episode (
 
 -- 4) Mémoire sémantique (pgvector)
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE memory_chunk (
+CREATE TABLE IF NOT EXISTS memory_chunk (
                               id UUID PRIMARY KEY,
                               user_id UUID NOT NULL REFERENCES users(id),
                               thread_id UUID NULL REFERENCES threads(id),
